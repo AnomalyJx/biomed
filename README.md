@@ -4,6 +4,7 @@ Revision site for LSBU Foundation Year: **Foundation of Biology** and **Foundati
 
 - **Notes:** summarised, editable notes for 21 topics, with figures from the lecture slides
 - **Quiz:** 264 multiple-choice questions with explanations; choose topics and number of questions
+- **Calculator:** iOS-style calculator (order of operations, scientific keys) plus a unit converter for volume, mass, length, time, temperature, concentration and more
 - **Progress:** per-topic scores (saved in your browser only)
 
 Live site: https://anomalyjx.github.io/biomed/
