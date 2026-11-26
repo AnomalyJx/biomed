@@ -152,6 +152,42 @@ label.lbl{font-weight:600;display:block;margin:0 0 6px}
 .cv-line b{text-align:right;font-variant-numeric:tabular-nums}
 .cv-line.hl{outline:2px solid var(--eo)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ask claude */
+.chat{display:flex;flex-direction:column;min-height:calc(100dvh - 160px)}
+.chhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.chbtns{display:flex;gap:8px}
+.chset{border:1px solid var(--line);border-radius:12px;padding:12px;margin:4px 0 10px;background:var(--bg)}
+.chset .muted a{color:var(--hx)}
+.chkey{display:flex;gap:8px}.chkey input{flex:1;min-height:44px;border:1.5px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--card);font-size:16px}
+.msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:6px 2px;max-height:62dvh;min-height:240px}
+.msg{max-width:92%;border-radius:16px;padding:10px 14px;overflow-wrap:anywhere}
+.msg.user{align-self:flex-end;background:var(--hx);color:var(--bg);border-bottom-right-radius:4px}
+.msg.assistant{align-self:flex-start;background:var(--hxsoft);border-bottom-left-radius:4px}
+.msg.err{background:var(--badsoft)}
+.msg .body p{margin:0 0 8px}.msg .body p:last-child{margin-bottom:0}
+.msg .body pre{background:var(--card);padding:10px;border-radius:8px;overflow-x:auto;font-size:13.5px}
+.msg .body code{font-size:14px}
+.msg .body table{font-size:14px;margin:8px 0}
+.msg .body .katex-display{overflow-x:auto;overflow-y:hidden;padding:4px 0}
+.msg .st{color:var(--mute);font-size:14px;font-style:italic}
+.msg .st:empty{display:none}
+.meta2{font-size:12px;color:var(--mute);margin-top:6px}
+.copy{border:0;background:none;color:var(--hx);font-size:13px;padding:6px 0 0;min-height:32px;cursor:pointer}
+.files{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.thumb{max-width:160px;max-height:160px;border-radius:10px;display:block}
+.fchip{background:rgba(255,255,255,.2);border-radius:8px;padding:2px 8px;font-size:13px}
+.msg.assistant .fchip{background:var(--card)}
+.pend{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.pend:empty{display:none}
+.pchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 6px;font-size:13px;background:var(--bg);max-width:100%}
+.pchip img{width:28px;height:28px;object-fit:cover;border-radius:50%}
+.pchip button{border:0;background:var(--hxsoft);border-radius:50%;width:28px;height:28px;font-size:16px;line-height:1}
+.composer{display:flex;gap:8px;align-items:flex-end;border:1.5px solid var(--line);border-radius:16px;padding:6px;background:var(--bg)}
+.composer.over{border-color:var(--eo);background:var(--eosoft)}
+.composer textarea{flex:1;border:0;background:transparent;resize:none;min-height:44px;max-height:200px;padding:10px 6px;font-size:16px;outline:none}
+.composer .att{width:44px;padding:0;font-size:22px;border-radius:12px}
+.composer .btn.stop{background:var(--bad);border-color:var(--bad)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media(max-width:600px){table{font-size:13px}th,td{padding:5px 6px}.fig img{height:170px}}
 </style>
@@ -167,6 +203,7 @@ label.lbl{font-weight:600;display:block;margin:0 0 6px}
     <a href="#calc" id="tab-calc">Calculator</a>
     <a href="#quiz" id="tab-quiz">Quiz</a>
     <a href="#progress" id="tab-progress">Progress</a>
+    <a href="#ask" id="tab-ask" hidden>Ask</a>
   </nav>
 </header>
 <main id="app"></main>
@@ -179,6 +216,7 @@ label.lbl{font-weight:600;display:block;margin:0 0 6px}
 <script src="data-quiz.js"></script>
 <script src="data-maths.js"></script>
 <script src="calc.js"></script>
+<script src="chat.js"></script>
 <script>
 {
 const T = window.TOPICS, Q = window.QUESTIONS, S = window.SVGS;
@@ -399,14 +437,25 @@ function renderProgress(){
 /* ---------- ROUTER ---------- */
 function route(){
   const h = (location.hash || "#notes").slice(1);
-  const view = ["notes","calc","quiz","progress"].includes(h) ? h : "notes";
-  ["notes","calc","quiz","progress"].forEach(v => { const a = $("#tab-"+v); if(v===view) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
+  if(h === "dev"){ store.set("dev", true); showDev(); location.replace("#ask"); return; }
+  const dev = store.get("dev", false);
+  const view = ["notes","calc","quiz","progress"].includes(h) || (h === "ask" && dev) ? h : "notes";
+  ["notes","calc","quiz","progress","ask"].forEach(v => { const a = $("#tab-"+v); if(v===view) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
   if(view === "notes") renderNotes();
   else if(view === "calc") window.CALC.render(app, store, esc);
+  else if(view === "ask") window.CHAT.render(app, store, esc);
   else if(view === "quiz") (quizState && !quizState.done) ? renderQuestion() : (quizState && quizState.done ? finish() : renderSetup());
   else renderProgress();
 }
 window.addEventListener("hashchange", route);
+function showDev(){ $("#tab-ask").hidden = !store.get("dev", false); }
+window.addEventListener("devchange", showDev);
+showDev();
+{ // secret unlock: tap the logo 5 times quickly
+  let taps = 0, t;
+  $(".logo").addEventListener("click", () => { taps++; clearTimeout(t); t = setTimeout(() => { taps = 0; }, 1500);
+    if(taps >= 5){ taps = 0; const on = !store.get("dev", false); store.set("dev", on); showDev(); location.hash = on ? "ask" : "notes"; } });
+}
 route();
 }
 </script>
