@@ -92,11 +92,9 @@ label.lbl{font-weight:600;display:block;margin:0 0 6px}
 .segs i.cur{background:#22d3ee;box-shadow:0 0 0 2px light-dark(#a5f3fc,#155e75)}
 .segs i.ok{background:var(--ok)}
 .segs i.no{background:var(--bad)}
-.sound{margin-left:auto;border:1.5px solid var(--line);background:transparent;border-radius:999px;padding:4px 12px;min-height:34px;font-size:13px;color:var(--mute)}
-.sound[aria-pressed=true]{color:var(--hx);border-color:var(--hx)}
 .progress{height:8px;background:var(--hxsoft);border-radius:99px;overflow:hidden;margin:4px 0 14px}
 .progress i{display:block;height:100%;background:var(--hx);transition:width .3s}
-.qtop{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:14px;color:var(--mute)}
+.qtop{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 14px;font-size:14px;color:var(--mute)}
 .qtext{font-size:clamp(18px,3.6vw,21px);font-weight:600;line-height:1.35;margin:8px 0 14px}
 .qimg{background:#fff;border-radius:12px;border:1px solid var(--line);margin:0 0 14px;padding:6px;text-align:center}
 .qimg img{max-width:100%;max-height:300px}
@@ -321,16 +319,7 @@ function segs(s, done){
     return `<i class="${cls}"></i>`;
   }).join("")}</div>`;
 }
-const SFX = {};
-const soundOn = () => store.get("sound", true);
-function unlock(){ ["correct","wrong","complete"].forEach(k => { if(!SFX[k]){ try{ SFX[k] = new Audio("sfx/" + k + ".mp3"); SFX[k].preload = "auto"; SFX[k].volume = 0.6; }catch(e){} } }); }
-function play(k){
-  if(!soundOn()) return;
-  unlock(); const a = SFX[k]; if(!a) return;
-  try{ a.currentTime = 0; const p = a.play(); if(p && p.catch) p.catch(()=>{}); }catch(e){}
-}
 function startQuiz(pool, n){
-  unlock();
   let qs = shuffle(pool); if(n !== "all") qs = qs.slice(0, n);
   quizState = {qs: qs.map(q => { const order = shuffle(q.o.map((_,i)=>i)); return {...q, order}; }), i:0, score:0, answers:[], done:false};
   renderQuestion();
@@ -339,7 +328,7 @@ function renderQuestion(){
   const s = quizState, q = s.qs[s.i], t = topicById(q.t);
   const media = q.img ? `<div class="qimg"><img src="img/${q.img}.jpg" alt="Diagram for this question"></div>` : q.svg ? `<div class="qimg">${S[q.svg]}</div>` : "";
   app.innerHTML = `<section class="card">
-    <div class="qtop"><span>Question ${s.i+1} of ${s.qs.length}</span><span>${esc(t.short)}</span><button class="sound" id="sndBtn" aria-pressed="${soundOn()}">${soundOn() ? "Sound on" : "Sound off"}</button></div>
+    <div class="qtop"><span>Question ${s.i+1} of ${s.qs.length}</span><span>${esc(t.short)}</span></div>
     ${segs(s)}
     <p class="qtext">${esc(q.q)}</p>
     ${media}
@@ -348,7 +337,6 @@ function renderQuestion(){
     <div class="bar" style="margin-top:14px"><button class="btn" id="quit">End quiz</button></div>
   </section>`;
   app.querySelectorAll(".opt").forEach(b => b.onclick = () => answer(+b.dataset.oi));
-  $("#sndBtn").onclick = (e) => { store.set("sound", !soundOn()); e.currentTarget.textContent = soundOn() ? "Sound on" : "Sound off"; e.currentTarget.setAttribute("aria-pressed", soundOn()); if(soundOn()) unlock(); };
   $("#quit").onclick = () => finish();
 }
 function answer(oi){
@@ -356,7 +344,6 @@ function answer(oi){
   if(right) s.score++;
   s.answers.push({q, chose: oi, right});
   const seg = app.querySelector('.segs i.cur'); if(seg){ seg.className = right ? "ok" : "no"; seg.title = "Question " + (s.i+1) + (right ? ": correct" : ": incorrect"); }
-  play(right ? "correct" : "wrong");
   app.querySelectorAll(".opt").forEach(b => { b.disabled = true; const v = +b.dataset.oi; if(v === q.a) b.classList.add("right"); else if(v === oi) b.classList.add("wrong"); });
   $("#fb").innerHTML = `<div class="fb" role="status"><strong style="color:${right?"var(--ok)":"var(--bad)"}">${right ? "Correct!" : "Not quite. Answer: " + esc(q.o[q.a])}</strong>${esc(q.e)}</div>
     <div class="bar" style="margin-top:12px"><button class="btn solid" id="nextBtn">${s.i+1 < s.qs.length ? "Next question" : "See results"}</button></div>`;
@@ -377,7 +364,6 @@ function finish(){
   }
   const n = s.answers.length, pct = n ? Math.round(s.score/n*100) : 0;
   const misses = s.answers.filter(a => !a.right);
-  if(!s.played){ s.played = true; play("complete"); }
   app.innerHTML = `<section class="card">
     <p class="meta">Quiz complete</p>
     ${segs(s, true)}
