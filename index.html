@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#1456c0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet">
+<script>try{var t=JSON.parse(localStorage.getItem("fob.theme"));if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
 /* VOICE: calm study companion, clear and encouraging, never cluttered.
    IDEA: a clean lab bench: crisp white glassware under cool blue light.
@@ -188,6 +189,46 @@ label.lbl{font-weight:600;display:block;margin:0 0 6px}
 .composer textarea{flex:1;border:0;background:transparent;resize:none;min-height:44px;max-height:200px;padding:10px 6px;font-size:16px;outline:none}
 .composer .att{width:44px;padding:0;font-size:22px;border-radius:12px}
 .composer .btn.stop{background:var(--bad);border-color:var(--bad)}
+
+/* theme button */
+.themebtn{display:flex;align-items:center;gap:6px;border:1.5px solid rgba(255,255,255,.45);background:rgba(255,255,255,.1);color:#fff;border-radius:999px;padding:6px 12px;min-height:38px;font-size:13.5px;font-weight:600}
+.themebtn svg{width:16px;height:16px}
+.themebtn:hover{background:rgba(255,255,255,.2)}
+/* desktop / wide screens */
+@media (min-width:1000px){
+  .top,nav.tabs,main{max-width:1280px}
+  header{display:flex;align-items:stretch;padding:0 max(3vw,24px)}
+  header .top{margin:0;padding:12px 0;flex:1;max-width:none}
+  header nav.tabs{margin:0;padding:0;max-width:none;align-items:stretch;gap:2px}
+  nav.tabs a{flex:none;padding:0 18px;display:flex;align-items:center;font-size:15px;border-bottom-width:3px}
+  header .themebtn{order:3;align-self:center;margin-left:16px}
+  main{padding:28px max(3vw,24px) 80px}
+  /* notes: topic sidebar + reading column */
+  .notesgrid{display:grid;grid-template-columns:250px minmax(0,1fr);gap:28px;align-items:start}
+  .side{position:sticky;top:88px;max-height:calc(100vh - 110px);overflow-y:auto;padding-right:4px}
+  .side .subj button{font-size:13.5px;min-height:38px}
+  .conv .chips{flex-wrap:wrap;overflow:visible}
+  .side .chips{flex-direction:column;overflow:visible;gap:4px;padding:4px 0}
+  .side .chip{text-align:left;border-radius:10px;border-color:transparent;background:transparent;min-height:40px;padding:8px 12px;font-size:14.5px}
+  .side .chip:hover{background:var(--hxsoft)}
+  .side .chip[aria-pressed=true]{background:var(--hx);color:var(--bg)}
+  .maincol .card{padding:32px 40px}
+  .notes{max-width:78ch;font-size:16.5px}
+  .figs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));overflow:visible}
+  .fig img{height:220px}
+  .fignav{display:none}
+  /* quiz, progress, ask */
+  .opts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rows{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:32px}
+  .pick{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+  main > .card, main > section.card{max-width:960px;margin-inline:auto}
+  .chat{max-width:960px;margin-inline:auto}
+  .msgs{max-height:62vh}
+  .msg{max-width:80%}
+  .calcwrap{grid-template-columns:400px minmax(0,1fr);gap:24px}
+}
+@media (min-width:1000px) and (max-width:1180px){ .notesgrid{grid-template-columns:210px minmax(0,1fr)} .maincol .card{padding:26px 28px} }
+@media (max-width:999px){ .themebtn span{display:none} .themebtn{padding:6px 9px} }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media(max-width:600px){table{font-size:13px}th,td{padding:5px 6px}.fig img{height:170px}}
 </style>
@@ -197,6 +238,7 @@ label.lbl{font-weight:600;display:block;margin:0 0 6px}
   <div class="top">
     <svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><rect x="2" y="12" width="36" height="16" rx="3" fill="#fff" opacity=".2"/><circle cx="20" cy="20" r="9" fill="#fff"/><circle cx="21" cy="20.5" r="4" fill="#4fb5ff"/><circle cx="15.5" cy="16" r="1.8" fill="#bfe1ff"/></svg>
     <h1>Foundation Year Revision<small>Biology &amp; Maths for Science · notes &amp; quiz · LSBU</small></h1>
+    <button class="themebtn" id="themeBtn" aria-label="Colour theme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg><span id="themeLbl">Auto</span></button>
   </div>
   <nav class="tabs" aria-label="Views">
     <a href="#notes" id="tab-notes">Notes</a>
@@ -244,9 +286,10 @@ function renderNotes(){
   const t = topicById(current);
   const custom = store.get("notes."+t.id, null);
   const mine = store.get("mine."+t.id, "");
-  app.innerHTML = `
+  app.innerHTML = `<div class="notesgrid"><aside class="side">
   <div class="subj" role="group" aria-label="Subject">${Object.entries(SUBJ).map(([k,v])=>`<button data-subj="${k}" aria-pressed="${t.subject===k}">${v}</button>`).join("")}</div>
   <div class="chips" role="toolbar" aria-label="Topics">${ofSubj(t.subject).map(x=>`<button class="chip" data-topic="${x.id}" aria-pressed="${x.id===current}">${esc(x.short)}</button>`).join("")}</div>
+  </aside><div class="maincol">
   <article class="card">
     <h2>${esc(t.title)}</h2>
     <p class="meta">${t.week ? esc(t.week) + " · " : ""}${countFor(t.id)} quiz questions${custom ? " · showing your edited version" : ""}</p>
@@ -256,7 +299,7 @@ function renderNotes(){
       <button class="btn pink" id="quizThis">Quiz this topic</button>
       <span class="saved" id="saved" aria-live="polite"></span>
     </div>
-    <div class="notes" id="notes">${custom || wrapTables(t.notes)}</div>
+    <div class="notes" id="noteBody">${custom || wrapTables(t.notes)}</div>
   </article>
   ${t.figs.length ? `<section class="card" aria-label="Figures from your slides">
     <h3 style="margin:0 0 4px;color:var(--hx)">Figures from your slides</h3>
@@ -268,9 +311,9 @@ function renderNotes(){
     <label class="lbl" for="mine">My notes for this topic</label>
     <textarea id="mine" placeholder="Add your own notes, mnemonics, things the lecturer said…">${esc(mine)}</textarea>
     <p class="muted" id="mineSaved" aria-live="polite" style="margin:6px 0 0">Saved automatically in this browser.</p>
-  </section>`;
+  </section></div></div>`;
   const chipOn = app.querySelector('.chip[aria-pressed=true]'), chipRow = app.querySelector('.chips'); if(chipOn) chipRow.scrollLeft = chipOn.offsetLeft - chipRow.offsetLeft - chipRow.clientWidth/2 + chipOn.offsetWidth/2;
-  const notes = $("#notes"), editBtn = $("#editBtn"), saved = $("#saved");
+  const notes = $("#noteBody"), editBtn = $("#editBtn"), saved = $("#saved");
   let timer;
   editBtn.onclick = () => {
     const on = notes.isContentEditable;
@@ -448,6 +491,12 @@ function route(){
   else renderProgress();
 }
 window.addEventListener("hashchange", route);
+{ // theme: Auto (follows the device) → Light → Dark
+  const order = ["auto","light","dark"], label = {auto:"Auto", light:"Light", dark:"Dark"};
+  const apply = t => { if(t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t; $("#themeLbl").textContent = label[t]; $("#themeBtn").setAttribute("aria-label", "Colour theme: " + label[t] + ". Click to change."); };
+  let theme = store.get("theme", "auto"); if(!order.includes(theme)) theme = "auto"; apply(theme);
+  $("#themeBtn").onclick = () => { theme = order[(order.indexOf(theme) + 1) % 3]; store.set("theme", theme); apply(theme); };
+}
 function showDev(){ $("#tab-ask").hidden = !store.get("dev", false); }
 window.addEventListener("devchange", showDev);
 showDev();
