@@ -190,6 +190,15 @@ label.lbl{font-weight:600;display:block;margin:0 0 6px}
 .composer .att{width:44px;padding:0;font-size:22px;border-radius:12px}
 .composer .btn.stop{background:var(--bad);border-color:var(--bad)}
 
+.nfig{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:12px;margin:14px 0 18px}
+.nfig.one{grid-template-columns:minmax(0,560px)}
+.nf{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.nf button{display:block;width:100%;padding:6px;border:0;background:#fff;cursor:zoom-in}
+.nf img{display:block;width:100%;height:190px;object-fit:contain}
+.nfig.one .nf img{height:auto;max-height:340px}
+.nf figcaption{font-size:13px;line-height:1.35;padding:7px 10px;color:var(--mute)}
+.credits{font-size:12.5px;color:var(--mute);margin:18px 0 0;border-top:1px solid var(--line);padding-top:10px}
+.lightbox img[src$=".svg"]{padding:16px;min-width:min(80vw,600px)}
 /* theme button */
 .themebtn{display:flex;align-items:center;gap:6px;border:1.5px solid rgba(255,255,255,.45);background:rgba(255,255,255,.1);color:#fff;border-radius:999px;padding:6px 12px;min-height:38px;font-size:13.5px;font-weight:600}
 .themebtn svg{width:16px;height:16px}
@@ -257,6 +266,7 @@ label.lbl{font-weight:600;display:block;margin:0 0 6px}
 <script src="data-notes.js"></script>
 <script src="data-quiz.js"></script>
 <script src="data-maths.js"></script>
+<script src="data-figs.js"></script>
 <script src="calc.js"></script>
 <script src="chat.js"></script>
 <script>
@@ -281,6 +291,24 @@ let current = store.get("topic", T[0].id);
 if(!topicById(current)) current = T[0].id;
 
 /* ---------- NOTES ---------- */
+function figHtml(list){
+  return `<div class="nfig ${list.length === 1 ? "one" : ""}" contenteditable="false">${list.map(([src,cap,cr]) => `<figure class="nf"><button type="button" data-src="${src}" data-cap="${esc(cap)}" aria-label="Enlarge: ${esc(cap)}"><img src="${src}" alt="${esc(cap)}" loading="lazy"></button><figcaption>${esc(cap)}</figcaption></figure>`).join("")}</div>`;
+}
+function withFigs(t, html){
+  const map = (window.FIGS || {})[t.id]; if(!map) return html;
+  const parts = html.split(/(?=<h3>)/);
+  return parts.map(sec => {
+    const m = sec.match(/^<h3>([\s\S]*?)<\/h3>/); if(!m) return sec;
+    const head = m[1].replace(/<[^>]+>/g, "");
+    const hit = map.find(([k]) => head.startsWith(k));
+    return hit ? sec + figHtml(hit[1]) : sec;
+  }).join("");
+}
+function creditsFor(t){
+  const map = (window.FIGS || {})[t.id]; if(!map) return "";
+  const used = [...new Set(map.flatMap(([,l]) => l.map(f => f[2])))];
+  return `<p class="credits">Images: ${used.map(c => esc((window.CREDITS||{})[c] || c)).join(" · ")}. Tap any image to enlarge it.</p>`;
+}
 function wrapTables(html){ return html.replace(/<table>/g,'<div class="tbl"><table>').replace(/<\/table>/g,'</table></div>'); }
 function renderNotes(){
   const t = topicById(current);
@@ -299,14 +327,9 @@ function renderNotes(){
       <button class="btn pink" id="quizThis">Quiz this topic</button>
       <span class="saved" id="saved" aria-live="polite"></span>
     </div>
-    <div class="notes" id="noteBody">${custom || wrapTables(t.notes)}</div>
+    <div class="notes" id="noteBody">${custom ? (custom.includes("nfig") ? custom : withFigs(t, custom)) : withFigs(t, wrapTables(t.notes))}</div>
+    ${creditsFor(t)}
   </article>
-  ${t.figs.length ? `<section class="card" aria-label="Figures from your slides">
-    <h3 style="margin:0 0 4px;color:var(--hx)">Figures from your slides</h3>
-    <p class="muted" style="margin:0 0 10px">Tap a figure to enlarge it.</p>
-    <div class="figs" id="figs">${t.figs.map(([f,c])=>`<figure class="fig"><button data-img="${f}" data-cap="${esc(c)}" aria-label="Enlarge: ${esc(c)}"><img src="img/${f}.jpg" alt="${esc(c)}" loading="lazy"></button><figcaption>${esc(c)}</figcaption></figure>`).join("")}</div>
-    ${t.figs.length>1 ? `<div class="fignav"><button class="btn" id="fPrev" aria-label="Previous figure">‹ Prev</button><button class="btn" id="fNext" aria-label="Next figure">Next ›</button></div>` : ""}
-  </section>` : ""}
   <section class="card">
     <label class="lbl" for="mine">My notes for this topic</label>
     <textarea id="mine" placeholder="Add your own notes, mnemonics, things the lecturer said…">${esc(mine)}</textarea>
@@ -338,12 +361,7 @@ function renderNotes(){
   $("#quizThis").onclick = () => { startQuiz(Q.filter(q => q.t === t.id), "all"); location.hash = "quiz"; window.scrollTo({top:0}); };
   const mineEl = $("#mine"); let mt;
   mineEl.addEventListener("input", () => { clearTimeout(mt); mt = setTimeout(()=>{ $("#mineSaved").textContent = store.set("mine."+t.id, mineEl.value) ? "Saved ✓" : "Couldn't save in this browser"; }, 500); });
-  const figs = $("#figs");
-  if(figs){
-    figs.addEventListener("click", e => { const b = e.target.closest("button[data-img]"); if(b) openLB(b.dataset.img, b.dataset.cap); });
-    const step = dir => { const w = figs.querySelector(".fig").offsetWidth + 12; figs.scrollBy({left: dir*w, behavior:"smooth"}); };
-    if($("#fPrev")){ $("#fPrev").onclick = () => step(-1); $("#fNext").onclick = () => step(1); }
-  }
+  notes.addEventListener("click", e => { if(notes.isContentEditable) return; const b = e.target.closest("button[data-src]"); if(b) openLB(b.dataset.src, b.dataset.cap); });
 }
 app.addEventListener("click", e => {
   const sb = e.target.closest("[data-subj]");
@@ -351,7 +369,7 @@ app.addEventListener("click", e => {
   const c = e.target.closest(".chip[data-topic]");
   if(c){ current = c.dataset.topic; store.set("topic", current); store.set("last."+topicById(current).subject, current); renderNotes(); window.scrollTo({top:0}); }
 });
-function openLB(f, cap){ $("#lbImg").src = "img/"+f+".jpg"; $("#lbImg").alt = cap; $("#lbCap").textContent = cap; $("#lb").classList.add("open"); $("#lbClose").focus(); }
+function openLB(f, cap){ $("#lbImg").src = f; $("#lbImg").alt = cap; $("#lbCap").textContent = cap; $("#lb").classList.add("open"); $("#lbClose").focus(); }
 function closeLB(){ $("#lb").classList.remove("open"); }
 $("#lbClose").onclick = closeLB;
 $("#lb").addEventListener("click", e => { if(e.target.id === "lb") closeLB(); });
